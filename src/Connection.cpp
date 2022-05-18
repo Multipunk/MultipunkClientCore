@@ -24,7 +24,7 @@ void Connection::ClientHandler(Connection *connection) {
 }
 
 bool Connection::Connect(string ip, int port) {
-	if (!this->isReady && !this->Init()) {
+	if (!Connection::isReady && !this->Init()) {
 		cout << "Connection::Connect() > WSAStartup error" << endl;
 		return false;
 	}

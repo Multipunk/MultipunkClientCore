@@ -6,6 +6,23 @@
 
 #include <RED4ext/RED4ext.hpp>
 
+////////////////////////////////////////////////////////
+struct MyCustomClass : RED4ext::IScriptable {
+	RED4ext::CClass *GetNativeType();
+};
+
+RED4ext::TTypedClass<MyCustomClass> cls("MyCustomClass");
+
+RED4ext::CClass *MyCustomClass::GetNativeType() {
+	return &cls;
+}
+
+void GetNumber(RED4ext::IScriptable *aContext, RED4ext::CStackFrame *aFrame, float *aOut, int64_t a4) {
+	aFrame->code++; // skip ParamEnd
+	*aOut = 6.25;
+}
+////////////////////////////////////////////////////////
+
 Connection Connection;
 
 void ConnectionIsConnected(RED4ext::IScriptable *aContext, RED4ext::CStackFrame *aFrame, bool *aOut, int64_t a4) {
@@ -34,9 +51,23 @@ void ConnectionReceive(RED4ext::IScriptable *aContext, RED4ext::CStackFrame *aFr
 	*aOut = Connection.Receive().c_str();
 }
 
-RED4EXT_C_EXPORT void RED4EXT_CALL RegisterTypes() {}
+RED4EXT_C_EXPORT void RED4EXT_CALL RegisterTypes() {
+	cls.flags = {.isNative = true};
+	RED4ext::CRTTISystem::Get()->RegisterType(&cls);
+}
 
 RED4EXT_C_EXPORT void RED4EXT_CALL PostRegisterTypes() {
+	{
+		auto rtti = RED4ext::CRTTISystem::Get();
+		auto scriptable = rtti->GetClass("IScriptable");
+		cls.parent = scriptable;
+
+		RED4ext::CBaseFunction::Flags flags = {.isNative = true};
+		auto getNumber = RED4ext::CClassFunction::Create(&cls, "GetNumber", "GetNumber", &GetNumber);
+		getNumber->flags = flags;
+		getNumber->SetReturnType("Float");
+		cls.RegisterFunction(getNumber);
+	}
 	auto rtti = RED4ext::CRTTISystem::Get();
 	RED4ext::CBaseFunction::Flags flags = {.isNative = true, .isStatic = true};
 
@@ -74,7 +105,6 @@ RED4EXT_C_EXPORT void RED4EXT_CALL PostRegisterTypes() {
 		rtti->RegisterFunction(func);
 	}
 }
-
 
 RED4EXT_C_EXPORT bool RED4EXT_CALL Main(RED4ext::PluginHandle aHandle, RED4ext::EMainReason aReason, const RED4ext::Sdk *aSdk) {
 	if (aReason == RED4ext::EMainReason::Load) {
